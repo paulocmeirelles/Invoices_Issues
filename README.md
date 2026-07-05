@@ -48,6 +48,19 @@ Você receberá acesso a um dataset aleatório de logs de invoice. Cada invoice 
 - Executive summary insights for deployment, conversion, overdue behavior, and reversals
 - English/Portuguese language toggle
 
+## How the dataset works
+
+The dataset contains one row per invoice event log. Each invoice can have multiple logs that represent its lifecycle stages, such as creation, payment, overdue status, and reversal.
+
+In practice, the analysis works by:
+
+- grouping the logs by invoice to reconstruct the full lifecycle of each invoice;
+- identifying whether the invoice was paid, paid late, partially reversed, or fully reversed;
+- using the timestamps in the logs to calculate metrics such as payment delay and reversal time;
+- aggregating the results to produce business insights and visualizations.
+
+This structure allows the dashboard to answer questions about deployment timing, payment conversion, overdue behavior, and reversal patterns.
+
 ## Project structure
 
 - app.py: interactive Streamlit dashboard
