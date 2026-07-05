@@ -13,15 +13,45 @@ from src.translation import get_text, normalize_language
 
 def build_payment_model(summary: pd.DataFrame) -> pd.DataFrame:
     model_df = summary[summary["has_paid"]].copy()
-    model_df = model_df[
-        ["paid_on_time", "amount_log", "time_to_due_hours", "created_hour", "created_dow", "created_month"]
-    ].dropna()
+    model_df = model_df[["paid_on_time", "amount_log", "time_to_due_hours", "created_hour", "created_dow"]].dropna()
     model_df["paid_on_time"] = model_df["paid_on_time"].astype(int)
 
     numeric_features = ["amount_log", "time_to_due_hours", "created_hour"]
-    categorical_features = ["created_dow", "created_month"]
-    X = model_df[["amount_log", "time_to_due_hours", "created_hour", "created_dow", "created_month"]]
+    categorical_features = ["created_dow"]
+    X = model_df[["amount_log", "time_to_due_hours", "created_hour", "created_dow"]]
     y = model_df["paid_on_time"]
+
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ("num", StandardScaler(), numeric_features),
+            ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_features),
+        ]
+    )
+
+    pipeline = Pipeline(
+        steps=[
+            ("preprocess", preprocessor),
+            ("model", LogisticRegression(max_iter=2000, class_weight="balanced")),
+        ]
+    )
+    pipeline.fit(X, y)
+
+    feature_names = pipeline.named_steps["preprocess"].get_feature_names_out()
+    coefficients = pipeline.named_steps["model"].coef_[0]
+    coef_df = pd.DataFrame({"feature": feature_names, "coefficient": coefficients})
+    coef_df["abs_coefficient"] = coef_df["coefficient"].abs()
+    return coef_df.sort_values("abs_coefficient", ascending=False).head(10)
+
+
+def build_reversal_model(summary: pd.DataFrame) -> pd.DataFrame:
+    model_df = summary[["reversed", "amount_log", "time_to_due_hours", "created_hour", "created_dow"]].copy()
+    model_df = model_df.dropna()
+    model_df["reversed"] = model_df["reversed"].astype(int)
+
+    numeric_features = ["amount_log", "time_to_due_hours", "created_hour"]
+    categorical_features = ["created_dow"]
+    X = model_df[["amount_log", "time_to_due_hours", "created_hour", "created_dow"]]
+    y = model_df["reversed"]
 
     preprocessor = ColumnTransformer(
         transformers=[

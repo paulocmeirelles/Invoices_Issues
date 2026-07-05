@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from src.analytics import build_executive_summary, build_payment_model, build_summary_tables
+from src.analytics import build_executive_summary, build_payment_model, build_reversal_model, build_summary_tables
 from src.invoice import DATA_PATH, build_invoice_summary, summarize_activity
 from src.translation import get_text, normalize_language, translate_table_for_language
 
@@ -168,6 +168,7 @@ def main() -> None:
     translated_tables = translate_tables(tables, language)
     activity = summarize_activity(filtered_df)
     model_coefs = build_payment_model(summary)
+    reversal_model_coefs = build_reversal_model(summary)
 
     render_metrics(all_registers, summary, activity, tables, model_coefs, language)
 
@@ -187,6 +188,19 @@ def main() -> None:
         }
     )
     st.dataframe(model_table[[get_text("feature", language), get_text("coefficient", language), get_text("abs_coefficient", language)]], width="stretch")
+
+    st.subheader(get_text("factors_linked_to_reversal", language))
+    st.caption(get_text("reversal_model_note", language))
+    reversal_table = reversal_model_coefs.copy()
+    reversal_table["feature"] = reversal_table["feature"].str.replace("num__", "", regex=False).str.replace("cat__", "", regex=False)
+    reversal_table = reversal_table.rename(
+        columns={
+            "feature": get_text("feature", language),
+            "coefficient": get_text("coefficient", language),
+            "abs_coefficient": get_text("abs_coefficient", language),
+        }
+    )
+    st.dataframe(reversal_table[[get_text("feature", language), get_text("coefficient", language), get_text("abs_coefficient", language)]], width="stretch")
 
     st.download_button(
         label=get_text("download_filtered_invoice_summary", language),
