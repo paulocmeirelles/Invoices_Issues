@@ -143,13 +143,15 @@ def build_summary_tables(summary: pd.DataFrame) -> dict[str, pd.DataFrame]:
     monthly["late_rate"] = monthly["paid_late"] / monthly["total_invoices"] * 100
     monthly = monthly[monthly["total_invoices"] >= 100].copy()
 
-    amount_bins = pd.qcut(summary["amount"].fillna(0), q=4, labels=["Low", "Medium", "High", "Very high"])
+    amount_bins, amount_ranges = pd.qcut(summary["amount"].fillna(0), q=4, labels=["Low", "Medium", "High", "Very high"], retbins=True)
     amount_summary = (
         pd.DataFrame({"amount_bucket": amount_bins, "paid_on_time": summary["paid_on_time"]})
         .groupby("amount_bucket")
         .agg(paid_on_time_rate=("paid_on_time", "mean"), invoice_count=("paid_on_time", "size"))
         .reset_index()
     )
+    low_range_str = f"${amount_ranges[0]:,.2f} - ${amount_ranges[1]:,.2f}"
+    amount_summary.attrs["low_range"] = low_range_str
 
     due_gap_bins = pd.cut(
         summary["time_to_due_hours"].clip(lower=0),
@@ -237,8 +239,9 @@ def build_executive_summary(
         raise KeyError("paid_on_time_rate")
 
     best_dow, best_hour = activity["best_window"]
-    best_amount_bucket = amount_summary.sort_values(amount_rate_col).iloc[0][amount_bucket_col]
+    best_amount_bucket = amount_summary.sort_values(amount_rate_col).iloc[-1][amount_bucket_col]
     best_due_gap = due_gap_summary.sort_values(due_gap_rate_col).iloc[0][due_gap_bucket_col]
+    worst_due_gap = due_gap_summary.sort_values(due_gap_rate_col, ascending=False).iloc[0][due_gap_bucket_col]
 
     reversal_insight = []
     if not reversal_amount_summary.empty:
@@ -271,7 +274,7 @@ def build_executive_summary(
             },
             {
                 "title": get_text("payment_drivers_title", lang),
-                "value": f"As faturas têm mais probabilidade de serem pagas no prazo quando a janela até o vencimento é curta e o valor da fatura está em uma faixa menor; o modelo também mostra que a hora, o dia e o mês de criação influenciam o prazo. O padrão mais forte observado é que {best_due_gap} e {best_amount_bucket} estão associados a taxas menores de pagamento no prazo.",
+                "value": f"As faturas têm mais probabilidade de serem pagas no prazo quando a janela até o vencimento é curta ({worst_due_gap}) e o valor da fatura está em uma faixa menor ({str(amount_summary.attrs['low_range'])}); o modelo também mostra que a hora, o dia e o mês de criação influenciam o prazo. O padrão mais forte observado é que {best_due_gap} e {best_amount_bucket} estão associados a taxas menores de pagamento no prazo.",
             },
             {
                 "title": get_text("overdue_trend_title", lang),
