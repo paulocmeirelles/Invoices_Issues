@@ -21,6 +21,37 @@ You will receive access to a random Invoice Log Dataset. Each Invoice can have s
 4. Additional insight
    - Any other relevant insight you find useful.
 
+## How the dataset works
+
+The dataset contains one row per invoice event log. Each invoice can have multiple logs that represent its lifecycle stages, such as creation, payment, overdue status, and reversal.
+
+In practice, the analysis works by:
+
+- grouping the logs by invoice to reconstruct the full lifecycle of each invoice;
+- identifying whether the invoice was paid, paid late, partially reversed, or fully reversed;
+- using the timestamps in the logs to calculate metrics such as payment delay and reversal time;
+- aggregating the results to produce business insights and visualizations.
+
+This structure allows the dashboard to answer questions about deployment timing, payment conversion, overdue behavior, and reversal patterns.
+
+## What this project includes
+
+- Data loading and cleaning from the CSV file
+- Invoice-level aggregation and lifecycle analysis
+- Interactive charts and summary cards in a Streamlit dashboard
+- Executive summary insights for deployment, conversion, overdue behavior, and reversals
+- English/Portuguese language toggle
+
+## Project structure
+
+- app.py: interactive Streamlit dashboard
+- main.py: entry point for running the analysis workflow
+- src/invoice/processing.py: invoice data loading and aggregation
+- src/analytics/analysis.py: analysis and executive summary calculations
+- src/reports/visuals.py: chart and report generation
+- src/translation/translations.py: English/Portuguese text helpers
+- tests/: regression tests for the analysis logic
+
 ## Desafio (Português)
 
 Um Pix Invoice é um dos principais métodos usados por uma empresa para cobrar clientes. Assim como um boleto, um Invoice é emitido inicialmente com um valor esperado a ser pago, e depois os clientes realizam o pagamento pelo aplicativo do banco, escaneando o QR Code ou copiando as informações de pagamento.
@@ -40,36 +71,36 @@ Você receberá acesso a um dataset aleatório de logs de invoice. Cada invoice 
 4. Insight adicional
    - Qualquer outro insight relevante que você considerar útil.
 
-## What this project includes
+## Como o dataset funciona
 
-- Data loading and cleaning from the CSV file
-- Invoice-level aggregation and lifecycle analysis
-- Interactive charts and summary cards in a Streamlit dashboard
-- Executive summary insights for deployment, conversion, overdue behavior, and reversals
-- English/Portuguese language toggle
+O dataset contém uma linha para cada log de evento da invoice. Cada invoice pode ter vários logs que representam as etapas do seu ciclo de vida, como criação, pagamento, status de atraso e reversão.
 
-## How the dataset works
+Na prática, a análise funciona assim:
 
-The dataset contains one row per invoice event log. Each invoice can have multiple logs that represent its lifecycle stages, such as creation, payment, overdue status, and reversal.
+- agrupando os logs por invoice para reconstruir todo o ciclo de vida de cada invoice;
+- identificando se a invoice foi paga, paga com atraso, parcialmente revertida ou totalmente revertida;
+- usando os timestamps dos logs para calcular métricas como atraso no pagamento e tempo de reversão;
+- agregando os resultados para gerar insights de negócio e visualizações.
 
-In practice, the analysis works by:
+Essa estrutura permite que o dashboard responda perguntas sobre melhor momento de implantação, conversão de pagamento, comportamento de atraso e padrões de reversão.
 
-- grouping the logs by invoice to reconstruct the full lifecycle of each invoice;
-- identifying whether the invoice was paid, paid late, partially reversed, or fully reversed;
-- using the timestamps in the logs to calculate metrics such as payment delay and reversal time;
-- aggregating the results to produce business insights and visualizations.
+## Estrutura do projeto
 
-This structure allows the dashboard to answer questions about deployment timing, payment conversion, overdue behavior, and reversal patterns.
+- app.py: dashboard interativo em Streamlit
+- main.py: ponto de entrada para executar o fluxo de análise
+- src/invoice/processing.py: carregamento e agregação dos dados das invoices
+- src/analytics/analysis.py: cálculos de análise e resumo executivo
+- src/reports/visuals.py: geração de gráficos e relatórios
+- src/translation/translations.py: helpers de texto em inglês e português
+- tests/: testes de regressão para a lógica de análise
 
-## Project structure
+## O que este projeto inclui
 
-- app.py: interactive Streamlit dashboard
-- main.py: entry point for running the analysis workflow
-- src/invoice/processing.py: invoice data loading and aggregation
-- src/analytics/analysis.py: analysis and executive summary calculations
-- src/reports/visuals.py: chart and report generation
-- src/translation/translations.py: English/Portuguese text helpers
-- tests/: regression tests for the analysis logic
+- Carregamento e limpeza dos dados a partir do arquivo CSV
+- Agregação de dados no nível da invoice e análise do ciclo de vida
+- Gráficos interativos e cards de resumo em um dashboard Streamlit
+- Insights executivos sobre melhor momento de implantação, conversão, comportamento de atraso e reversões
+- Alternância entre inglês e português na interface
 
 ## Requirements
 
