@@ -56,6 +56,7 @@ _TEXTS = {
         "overdue_trend_title": "Overdue trend",
         "reversal_rate_title": "Reversal rate",
         "reversal_timing_title": "Reversal timing",
+        "reversal_amount_title": "Reversal rate by amount threshold",
     },
     "PT": {
         "page_title": "Análise de Faturas Pix",
@@ -108,6 +109,7 @@ _TEXTS = {
         "overdue_trend_title": "Tendência de atraso",
         "reversal_rate_title": "Taxa de reversão",
         "reversal_timing_title": "Tempo de reversão",
+        "reversal_amount_title": "Taxa de reversão por limite de valor",
     },
 }
 

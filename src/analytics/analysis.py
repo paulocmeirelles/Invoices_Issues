@@ -75,6 +75,46 @@ def build_reversal_model(summary: pd.DataFrame) -> pd.DataFrame:
     return coef_df.sort_values("abs_coefficient", ascending=False).head(10)
 
 
+def build_reversal_amount_summary(summary: pd.DataFrame, quantiles: tuple[float, ...] = (0.25, 0.5, 0.75)) -> pd.DataFrame:
+    if summary.empty or "amount" not in summary.columns or "reversed" not in summary.columns:
+        return pd.DataFrame(columns=["threshold", "below_rate", "above_rate", "rate_delta", "below_count", "above_count"])
+
+    amount = pd.to_numeric(summary["amount"], errors="coerce").fillna(0)
+    rows: list[dict[str, float | int]] = []
+
+    for quantile in quantiles:
+        threshold = float(amount.quantile(quantile))
+        if pd.isna(threshold):
+            continue
+
+        below_mask = amount <= threshold
+        above_mask = amount > threshold
+        below_count = int(below_mask.sum())
+        above_count = int(above_mask.sum())
+        if below_count < 2 or above_count < 2:
+            continue
+
+        below_rate = float(summary.loc[below_mask, "reversed"].mean() * 100)
+        above_rate = float(summary.loc[above_mask, "reversed"].mean() * 100)
+        rows.append(
+            {
+                "threshold": round(threshold, 2),
+                "below_rate": below_rate,
+                "above_rate": above_rate,
+                "rate_delta": below_rate - above_rate,
+                "below_count": below_count,
+                "above_count": above_count,
+            }
+        )
+
+    if not rows:
+        return pd.DataFrame(columns=["threshold", "below_rate", "above_rate", "rate_delta", "below_count", "above_count"])
+
+    summary_df = pd.DataFrame(rows)
+    summary_df["abs_rate_delta"] = summary_df["rate_delta"].abs()
+    return summary_df.sort_values("abs_rate_delta", ascending=False).reset_index(drop=True)
+
+
 def build_summary_tables(summary: pd.DataFrame) -> dict[str, pd.DataFrame]:
     total_invoices = len(summary)
     paid_invoices = int(summary["has_paid"].sum())
@@ -130,6 +170,7 @@ def build_summary_tables(summary: pd.DataFrame) -> dict[str, pd.DataFrame]:
         .agg(reversal_rate=("reversed", "mean"), invoice_count=("reversed", "size"))
         .reset_index()
     )
+    reversal_amount_summary = build_reversal_amount_summary(summary)
 
     return {
         "overall": overall,
@@ -137,6 +178,7 @@ def build_summary_tables(summary: pd.DataFrame) -> dict[str, pd.DataFrame]:
         "amount_summary": amount_summary,
         "due_gap_summary": due_gap_summary,
         "reversal_summary": reversal_summary,
+        "reversal_amount_summary": reversal_amount_summary,
     }
 
 
@@ -173,6 +215,7 @@ def build_executive_summary(
 
     amount_summary = tables["amount_summary"].copy()
     due_gap_summary = tables["due_gap_summary"].copy()
+    reversal_amount_summary = tables.get("reversal_amount_summary", pd.DataFrame()).copy()
 
     amount_bucket_col = next(
         (col for col in amount_summary.columns if col in {"amount_bucket", "Faixa de valor", "Amount bucket"}),
@@ -197,11 +240,30 @@ def build_executive_summary(
     best_amount_bucket = amount_summary.sort_values(amount_rate_col).iloc[0][amount_bucket_col]
     best_due_gap = due_gap_summary.sort_values(due_gap_rate_col).iloc[0][due_gap_bucket_col]
 
+    reversal_insight = []
+    if not reversal_amount_summary.empty:
+        best_threshold = reversal_amount_summary.sort_values("abs_rate_delta", ascending=False).iloc[0]
+        threshold_value = float(best_threshold["threshold"])
+        below_rate = float(best_threshold["below_rate"])
+        above_rate = float(best_threshold["above_rate"])
+        if lang == "PT":
+            comparison = f"cai para {above_rate:.1f}%" if above_rate < below_rate else f"sobe para {above_rate:.1f}%"
+            reversal_insight = [{
+                "title": get_text("reversal_amount_title", lang),
+                "value": f"Faturas até ${threshold_value:,.0f} têm taxa de reversão de {below_rate:.1f}%; acima desse limite, a taxa {comparison}.",
+            }]
+        else:
+            comparison = f"drops to {above_rate:.1f}%" if above_rate < below_rate else f"rises to {above_rate:.1f}%"
+            reversal_insight = [{
+                "title": get_text("reversal_amount_title", lang),
+                "value": f"Invoices up to ${threshold_value:,.0f} show a reversal rate of {below_rate:.1f}%; above that threshold, the rate {comparison}.",
+            }]
+
     if lang == "PT":
         return [
             {
                 "title": get_text("best_deployment_title", lang),
-                "value": f"{best_dow} às {best_hour:02d}:00 é a janela de menor atividade ({activity['best_window_events']} eventos).",
+                "value": f"{best_dow} por volta de {best_hour:02d}:00 é a janela de menor atividade ({activity['best_window_events']} eventos). Motivo: Temos baixo fluxo e tempo para reverter na eventualidade de problemas ainda com pouco impacto.",
             },
             {
                 "title": get_text("payment_conversion_title", lang),
@@ -219,6 +281,7 @@ def build_executive_summary(
                 "title": get_text("reversal_rate_title", lang),
                 "value": f"{reversed_invoices / total_invoices * 100:.3f}% das faturas são revertidas (parcial ou totalmente, com base nos eventos de reversão do conjunto de dados).",
             },
+            *reversal_insight,
             {
                 "title": get_text("reversal_timing_title", lang),
                 "value": f"A reversão típica ocorre após {median_delay:.1f} horas; o conjunto de dados não contém um rótulo separado para reversão parcial/total, então este resumo usa eventos de reversão como um único grupo.",
@@ -228,7 +291,7 @@ def build_executive_summary(
     return [
         {
             "title": get_text("best_deployment_title", lang),
-            "value": f"{best_dow} at {best_hour:02d}:00 is the lowest-activity window ({activity['best_window_events']} events).",
+            "value": f"{best_dow} around of {best_hour:02d}:00 is the lowest-activity window ({activity['best_window_events']} events). Reason: We have low traffic and enough time to roll back in the event of any issues while the impact is still minimal.",
         },
         {
             "title": get_text("payment_conversion_title", lang),
@@ -246,6 +309,7 @@ def build_executive_summary(
             "title": get_text("reversal_rate_title", lang),
             "value": f"{reversed_invoices / total_invoices * 100:.3f}% of invoices are reversed (partial or total, based on reversal events in the dataset).",
         },
+        *reversal_insight,
         {
             "title": get_text("reversal_timing_title", lang),
             "value": f"The typical reversal happens after {median_delay:.1f} hours; the dataset does not contain a separate partial/total label, so this summary uses reversal events as a combined bucket.",

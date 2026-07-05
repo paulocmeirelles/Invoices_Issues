@@ -187,7 +187,8 @@ def main() -> None:
             "abs_coefficient": get_text("abs_coefficient", language),
         }
     )
-    st.dataframe(model_table[[get_text("feature", language), get_text("coefficient", language), get_text("abs_coefficient", language)]], width="stretch")
+    model_table = model_table.sort_values(by=get_text("abs_coefficient", language), ascending=False)
+    st.dataframe(model_table[[get_text("feature", language), get_text("abs_coefficient", language)]], width="stretch")
 
     st.subheader(get_text("factors_linked_to_reversal", language))
     st.caption(get_text("reversal_model_note", language))
@@ -200,14 +201,15 @@ def main() -> None:
             "abs_coefficient": get_text("abs_coefficient", language),
         }
     )
-    st.dataframe(reversal_table[[get_text("feature", language), get_text("coefficient", language), get_text("abs_coefficient", language)]], width="stretch")
+    reversal_table = reversal_table.sort_values(by=get_text("abs_coefficient", language), ascending=False)
+    st.dataframe(reversal_table[[get_text("feature", language), get_text("abs_coefficient", language)]], width="stretch")
 
-    st.download_button(
-        label=get_text("download_filtered_invoice_summary", language),
-        data=summary.to_csv(index=False).encode("utf-8"),
-        file_name=f"{get_text('download_filtered_invoice_filename', language)}.csv",
-        mime="text/csv",
-    )
+    # st.download_button(
+    #     label=get_text("download_filtered_invoice_summary", language),
+    #     data=summary.to_csv(index=False).encode("utf-8"),
+    #     file_name=f"{get_text('download_filtered_invoice_filename', language)}.csv",
+    #     mime="text/csv",
+    # )
 
 
 if __name__ == "__main__":
