@@ -150,7 +150,12 @@ def build_summary_tables(summary: pd.DataFrame) -> dict[str, pd.DataFrame]:
         .agg(paid_on_time_rate=("paid_on_time", "mean"), invoice_count=("paid_on_time", "size"))
         .reset_index()
     )
-    low_range_str = f"${amount_ranges[0]:,.2f} - ${amount_ranges[1]:,.2f}"
+    labels = ["Low", "Medium", "High", "Very high"]
+    ranges_dict = {}
+    for i, label in enumerate(labels):
+        ranges_dict[label] = f"RS{amount_ranges[i]:,.2f} - RS{amount_ranges[i+1]:,.2f}"
+    amount_summary.attrs["ranges_dict"] = ranges_dict
+    low_range_str = f"RS{amount_ranges[0]:,.2f} - RS{amount_ranges[1]:,.2f}"
     amount_summary.attrs["low_range"] = low_range_str
 
     due_gap_bins = pd.cut(
@@ -197,6 +202,7 @@ def build_executive_summary(
     late_paid_invoices = int(summary["paid_late"].sum())
     reversed_invoices = int(summary["reversed"].sum())
     median_delay = float(summary["reversal_delay_hours"].median())
+    median_delay_str = f"{int(median_delay)}h{round((median_delay - int(median_delay)) * 60):02d}min"
 
     monthly = tables["monthly"].copy()
     month_col = next(
@@ -239,7 +245,11 @@ def build_executive_summary(
         raise KeyError("paid_on_time_rate")
 
     best_dow, best_hour = activity["best_window"]
+    if lang == "PT":
+        best_dow = get_text(best_dow.lower(), lang)
     best_amount_bucket = amount_summary.sort_values(amount_rate_col).iloc[-1][amount_bucket_col]
+    ranges_dict = tables["amount_summary"].attrs.get("ranges_dict", {})
+    best_amount_range_str = ranges_dict.get(best_amount_bucket, str(best_amount_bucket))
     best_due_gap = due_gap_summary.sort_values(due_gap_rate_col).iloc[0][due_gap_bucket_col]
     worst_due_gap = due_gap_summary.sort_values(due_gap_rate_col, ascending=False).iloc[0][due_gap_bucket_col]
 
@@ -253,20 +263,20 @@ def build_executive_summary(
             comparison = f"cai para {above_rate:.1f}%" if above_rate < below_rate else f"sobe para {above_rate:.1f}%"
             reversal_insight = [{
                 "title": get_text("reversal_amount_title", lang),
-                "value": f"Faturas até ${threshold_value:,.0f} têm taxa de reversão de {below_rate:.1f}%; acima desse limite, a taxa {comparison}.",
+                "value": f"Faturas até RS{threshold_value:,.0f} têm taxa de reversão de {below_rate:.1f}%; acima desse limite, a taxa {comparison}.",
             }]
         else:
             comparison = f"drops to {above_rate:.1f}%" if above_rate < below_rate else f"rises to {above_rate:.1f}%"
             reversal_insight = [{
                 "title": get_text("reversal_amount_title", lang),
-                "value": f"Invoices up to ${threshold_value:,.0f} show a reversal rate of {below_rate:.1f}%; above that threshold, the rate {comparison}.",
+                "value": f"Invoices up to RS{threshold_value:,.0f} show a reversal rate of {below_rate:.1f}%; above that threshold, the rate {comparison}.",
             }]
 
     if lang == "PT":
         return [
             {
                 "title": get_text("best_deployment_title", lang),
-                "value": f"{best_dow} por volta de {best_hour:02d}:00 é a janela de menor atividade ({activity['best_window_events']} eventos). Motivo: Temos baixo fluxo e tempo para reverter na eventualidade de problemas ainda com pouco impacto.",
+                "value": f"{best_dow} por volta de {best_hour:02d}:00 é a janela de menor atividade ({activity['best_window_events']} eventos).\nMotivo: Temos baixo volume de tráfego, o que nos proporciona tempo suficiente para reverter a alteração caso ocorra algum problema, minimizando o impacto para os usuários.",
             },
             {
                 "title": get_text("payment_conversion_title", lang),
@@ -274,7 +284,7 @@ def build_executive_summary(
             },
             {
                 "title": get_text("payment_drivers_title", lang),
-                "value": f"As faturas têm mais probabilidade de serem pagas no prazo quando a janela até o vencimento é curta ({worst_due_gap}) e o valor da fatura está em uma faixa menor ({str(amount_summary.attrs['low_range'])}); o modelo também mostra que a hora, o dia e o mês de criação influenciam o prazo. O padrão mais forte observado é que {best_due_gap} e {best_amount_bucket} estão associados a taxas menores de pagamento no prazo.",
+                "value": f"As faturas têm mais probabilidade de serem pagas no prazo quando a janela até o vencimento é curta ({worst_due_gap}) e o valor da fatura está em uma faixa menor ({amount_summary.attrs['low_range']}); o modelo também mostra que a hora, o dia e o mês de criação influenciam o prazo. O padrão mais forte observado é que {best_due_gap} e {best_amount_bucket} ({best_amount_range_str}) estão associados a taxas menores de pagamento no prazo.",
             },
             {
                 "title": get_text("overdue_trend_title", lang),
@@ -287,14 +297,14 @@ def build_executive_summary(
             *reversal_insight,
             {
                 "title": get_text("reversal_timing_title", lang),
-                "value": f"A reversão típica ocorre após {median_delay:.1f} horas; o conjunto de dados não contém um rótulo separado para reversão parcial/total, então este resumo usa eventos de reversão como um único grupo.",
+                "value": f"A reversão típica ocorre após {median_delay_str}.",
             },
         ]
 
     return [
         {
             "title": get_text("best_deployment_title", lang),
-            "value": f"{best_dow} around of {best_hour:02d}:00 is the lowest-activity window ({activity['best_window_events']} events). Reason: We have low traffic and enough time to roll back in the event of any issues while the impact is still minimal.",
+            "value": f"{best_dow} around of {best_hour:02d}:00 is the lowest-activity window ({activity['best_window_events']} events).\nReason: Low traffic provides enough time to perform a rollback should any issues occur, minimizing the overall impact.",
         },
         {
             "title": get_text("payment_conversion_title", lang),
@@ -302,7 +312,7 @@ def build_executive_summary(
         },
         {
             "title": get_text("payment_drivers_title", lang),
-            "value": f"Invoices are more likely to be paid on time when the due window is short and the invoice amount is in a lower bucket; the model also shows that creation hour/day/month influence timing. The strongest observed pattern is that {best_due_gap} and {best_amount_bucket} are associated with lower on-time payment rates.",
+            "value": f"Invoices are more likely to be paid on time when the due window is short ({worst_due_gap}) and the invoice amount is in a lower bucket ({amount_summary.attrs['low_range']}); the model also shows that creation hour/day/month influence timing. The strongest observed pattern is that {best_due_gap} and {best_amount_bucket} ({best_amount_range_str}) are associated with lower on-time payment rates.",
         },
         {
             "title": get_text("overdue_trend_title", lang),
@@ -315,6 +325,6 @@ def build_executive_summary(
         *reversal_insight,
         {
             "title": get_text("reversal_timing_title", lang),
-            "value": f"The typical reversal happens after {median_delay:.1f} hours; the dataset does not contain a separate partial/total label, so this summary uses reversal events as a combined bucket.",
+            "value": f"The typical reversal happens after {median_delay_str}.",
         },
     ]

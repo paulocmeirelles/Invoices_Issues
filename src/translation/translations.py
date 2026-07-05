@@ -110,6 +110,13 @@ _TEXTS = {
         "reversal_rate_title": "Taxa de reversão",
         "reversal_timing_title": "Tempo de reversão",
         "reversal_amount_title": "Taxa de reversão por limite de valor",
+        "monday": "Segunda-feira",
+        "tuesday": "Terça-feira",
+        "wednesday": "Quarta-feira",
+        "thursday": "Quinta-feira",
+        "friday": "Sexta-feira",
+        "saturday": "Sábado",
+        "sunday": "Domingo"
     },
 }
 
